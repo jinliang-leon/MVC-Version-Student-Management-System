@@ -1,0 +1,12 @@
+# 环境变量（含敏感信息，禁止提交）
+.env
+
+# 虚拟环境
+venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 测试缓存
+.pytest_cache/
