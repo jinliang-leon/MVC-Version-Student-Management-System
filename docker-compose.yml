@@ -1,0 +1,62 @@
+# ============================================================
+# 学生管理系统 —— Docker Compose 编排（后端 + MySQL）
+#
+# 快速开始：
+#   docker compose up -d --build
+#
+# 接口文档：http://localhost:8001/docs
+# 健康检查：http://localhost:8001/health
+#
+# 停止（保留数据）：     docker compose down
+# 停止并清空数据库数据： docker compose down -v
+# ============================================================
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: student_mgmt_mysql
+    restart: unless-stopped
+    environment:
+      # 数据库账号密码：请与下方 app 的 DATABASE_URL 保持一致（生产环境务必改成强密码）
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: student_management
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      # 可选：暴露到宿主机，便于本地用 Navicat 等工具连接；
+      # 若宿主机已有 MySQL 占用 3306，可删除此行或改成 "3307:3306"
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      # 等待 MySQL 真正就绪，避免 app 在数据库未启动时建表失败
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build: .
+    container_name: student_mgmt_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 容器内通过服务名 db 访问 MySQL（环境变量优先级高于 .env 默认值）
+      DATABASE_URL: mysql+pymysql://root:123456@db:3306/student_management?charset=utf8mb4
+      DEBUG: "false"          # 生产建议 false；开发想看 SQL 可改 "true"
+      LOG_LEVEL: INFO
+      TZ: Asia/Shanghai
+      # 以下均可选，使用 config.py 默认值：APP_NAME / APP_PORT / CORS_ORIGINS ...
+    ports:
+      - "8001:8001"
+    volumes:
+      - app_logs:/app/app/logs    # 日志持久化到命名卷（宿主机查看：docker volume inspect）
+
+volumes:
+  db_data:
+  app_logs:

@@ -1,0 +1,26 @@
+# 版本控制
+.git
+.gitignore
+
+# 敏感配置：不打进镜像，改由 docker-compose 的 environment 注入
+.env
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 虚拟环境
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 测试
+.pytest_cache/
+.coverage
+
+# 运行时日志
+app/logs/
