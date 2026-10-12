@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="0ef0345e-0c08-412d-b21c-dcf62c028698" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/auth.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/class_.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/deps.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/employment.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/gateway.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/permissions.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/roles.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/score.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/stats.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/student.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/teacher.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/api/users.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/decorators.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/decorators.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/forwarder.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/forwarder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/log_config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/response.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/security.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/security.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/class_.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/employment.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/permission.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/role.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/score.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/stats.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/student.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/teacher.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/crud/user.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/user.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schemas/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/schemas/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schemas/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/schemas/auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../seed_rbac.py" beforeDir="false" afterPath="$PROJECT_DIR$/../seed_rbac.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/main.py" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="3KLgzJHyUQKHmApHaivGiGpEQNv" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.main.executor": "Run",
+    "Python.play_video.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/Users/Windows/Desktop/学生管理系统与dify/app",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-PY-253.31033.139" />
+        <option value="bundled-python-sdk-2653e85de345-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.31033.139" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="0ef0345e-0c08-412d-b21c-dcf62c028698" name="更改" comment="" />
+      <created>1791342523414</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1791342523414</updated>
+      <workItem from="1791342524664" duration="2242000" />
+      <workItem from="1791354037162" duration="633000" />
+      <workItem from="1791354719432" duration="76000" />
+      <workItem from="1791549102807" duration="2617000" />
+      <workItem from="1791614057778" duration="10481000" />
+      <workItem from="1791766476289" duration="792000" />
+      <workItem from="1791767297763" duration="557000" />
+      <workItem from="1791768111915" duration="3622000" />
+      <workItem from="1791793090911" duration="1044000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/schemas/class_.py</url>
+          <line>6</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/app$play_video.coverage" NAME="play_video 覆盖结果" MODIFIED="1791773648339" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/../.." />
+    <SUITE FILE_PATH="coverage/app$main.coverage" NAME="main 覆盖结果" MODIFIED="1791794065239" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
