@@ -4,6 +4,13 @@
     - 本模块只做纯逻辑（不依赖 FastAPI / Request）。
     - 装饰器（app/core/decorators.py）调用 decode_token 完成鉴权。
     - 登录接口调用 create_access_token 生成 Token。
+
+JWT 设计（鉴权约定）：
+    - access_token **仅存放身份信息**（sub=user_id + username），不携带角色/权限。
+    - 鉴权装饰器每次都从数据库重新加载用户角色与权限（见 decorators._authenticate），
+      因此修改权限/角色后即时生效，无需重新登录。
+    - refresh_token 的生成函数（create_refresh_token）已就绪，登录接口暂只签发 access_token，
+      刷新流程后续迭代接入。
 """
 from datetime import datetime, timedelta, timezone
 
@@ -29,18 +36,36 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_access_token(user_id: int, roles: list[str]) -> str:
-    """生成 JWT：sub 存用户ID，roles 写入角色码列表
+def create_access_token(user_id: int, username: str, roles: list[str] | None = None) -> str:
+    """生成 JWT（仅含身份信息）
 
-    鉴权装饰器实际以数据库中的角色/权限为准（权限变更即时生效），
-    JWT 里的 roles 仅供前端展示与轻量判断。
+    载荷固定为：sub（用户ID）、username、iat、exp。
+    roles 参数为兼容保留，已不再写入 Token 载荷——角色/权限一律以数据库为准。
+
+    鉴权装饰器每次都按 sub 重新查库加载角色与权限，故权限变更即时生效。
     """
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
-        "roles": roles,
+        "username": username,
         "iat": now,
         "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def create_refresh_token(user_id: int, username: str) -> str:
+    """生成刷新令牌：当前登录接口暂不签发，后续迭代接入刷新流程时使用。
+
+    载荷额外带 type=refresh，用于校验时区分 token 类型。
+    """
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "username": username,
+        "type": "refresh",
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

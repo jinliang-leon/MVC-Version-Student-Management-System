@@ -22,5 +22,6 @@ venv/
 .pytest_cache/
 .coverage
 
-# 运行时日志
-app/logs/
+# 运行时日志（实际位于项目根目录 logs/）
+logs/
+uvicorn*.log

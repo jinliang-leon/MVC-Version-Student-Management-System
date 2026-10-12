@@ -12,11 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, RedirectResponse
 
-from app.api import api_router
+from app.controllers import controller_router
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.core.log_config import setup_logging
-from app.core.response import register_exception_handlers, success
+from app.core.logger import get_logger, init_logger
+from app.views.response import register_exception_handlers, success
 
 # 导入模型，确保 create_all 能识别所有表
 from app.models import Class, Employment, Permission, Role, Score, Student, Teacher, User  # noqa: F401
@@ -37,9 +37,9 @@ __doc__ = f"""学生管理系统 - FastAPI 应用入口
     http://127.0.0.1:{settings.APP_PORT}/ui   （托管 frontend/index.html）
 """
 
-# 初始化统一日志配置：控制台 + 文件，全局统一格式（见 app/core/log_config.py）
-setup_logging()
-logger = logging.getLogger(__name__)
+# 初始化统一日志：控制台 + 滚动文件，全局统一格式（见 app/core/logger.py）
+init_logger()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -83,7 +83,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     # ---------- 路由 ----------
-    app.include_router(api_router)
+    app.include_router(controller_router)
 
     # ---------- 健康检查 ----------
     @app.get("/", tags=["系统"], summary="服务信息")

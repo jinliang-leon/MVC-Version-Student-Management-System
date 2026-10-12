@@ -6,7 +6,7 @@
     - role_codes / permission_codes 为只读聚合属性，供装饰器与接口使用
     - is_active 控制账号是否启用（禁用后无法登录）
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,6 +39,12 @@ class User(Base, TimestampMixin):
         default=True,
         server_default="1",
         comment="是否启用：1-启用 0-禁用",
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(120), nullable=True, index=True, comment="邮箱（可选）"
+    )
+    full_name: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True, comment="姓名 / 昵称（可选）"
     )
 
     # ---------- 关系 ----------

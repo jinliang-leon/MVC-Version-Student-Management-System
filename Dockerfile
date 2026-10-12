@@ -34,9 +34,9 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY app /app/app
 
 # ---- 创建非 root 用户并预建日志目录，避免以 root 运行 ----
-# （config.py 的日志目录默认是 <项目根>/app/logs，这里即 /app/app/logs）
+# （config.py 的日志目录默认是 <项目根>/logs，这里即 /app/logs）
 RUN useradd --create-home appuser \
-    && mkdir -p /app/app/logs \
+    && mkdir -p /app/logs \
     && chown -R appuser:appuser /app
 USER appuser
 

@@ -70,9 +70,9 @@ Base URL：`http://127.0.0.1:8001`（端口由 `.env` 的 `APP_PORT` 决定）
 | 500 | 服务器内部异常 | 未捕获的异常 | `{"code":500,"message":"服务器内部异常: ...","data":null}` |
 | 502 | 网关转发失败 | 仅 `/gateway`：内部转发时网络异常 | `{"code":502,"message":"网关转发失败: ...","data":null}` |
 
-> `401`、`403` 只是全局处理器里预留了文案，当前版本没有任何接口会返回这两个码。
+> `401` / `403` 由 RBAC 鉴权装饰器触发（见 [RBAC_USAGE.md](RBAC_USAGE.md)）：未携带 / 无效 Token 返回 `401`，Token 有效但权限不足返回 `403`，响应体同样为 `{code, message, data}` 结构。
 >
-> 关于 `message` 的语言：由业务代码主动抛出的异常（`NotFoundException` / `DuplicateException` / `ConflictException` / 参数校验）都是**中文**提示；而框架层面的 `405 Method Not Allowed`、未知路径的 `404 Not Found` 会原样透出**英文**原文，例如 `{"code":405,"message":"Method Not Allowed","data":null}`。
+> 关于 `message` 的语言：由业务代码主动抛出的异常（`UnauthorizedException` / `ForbiddenException` / `NotFoundException` / `DuplicateException` / `ConflictException` / 参数校验）都是**中文**提示；而框架层面的 `405 Method Not Allowed`、未知路径的 `404 Not Found` 会原样透出**英文**原文，例如 `{"code":405,"message":"Method Not Allowed","data":null}`。
 
 ### 请求体校验规则（写入路径）
 

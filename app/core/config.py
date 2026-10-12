@@ -48,10 +48,13 @@ class Settings(BaseSettings):
     DB_NAME: str = "student_management"
 
     # ---------- JWT 认证 ----------
-    # 密钥务必在 .env 中配置为强随机值；生产环境切勿使用默认占位符
+    # 密钥务必在 .env 中配置为强随机值；生产环境务必替换默认值
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30   # Token 有效期（分钟）
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30   # access_token 有效期（分钟）
+
+    # refresh_token 生成函数（create_refresh_token）已就绪，但登录接口当前仅签发 access_token，刷新流程待后续接入
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7   # 7 天，供 refresh_token 使用
 
     # ---------- 初始管理员（seed_rbac.py 使用） ----------
     # 生产环境务必修改 ADMIN_PASSWORD 为强密码
@@ -66,12 +69,12 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # ---------- 日志 ----------
+    LOG_PROJECT_NAME: str = "student-management"   # 日志格式中的「项目名」
     LOG_LEVEL: str = "INFO"
-    LOG_DIR: str = "app/logs"                  # 相对路径时以项目根目录为基准（即 <项目根>/app/logs）
+    LOG_DIR: str = "logs"                           # 相对路径锚定项目根目录 -> <项目根>/logs（与 app 同级）
     LOG_FILE: str = "app.log"
-    LOG_ROTATION: str = "time"                 # "time"=按天切分 / "size"=按大小切分
-    LOG_BACKUP_COUNT: int = 30                 # 保留的备份数（time 模式下约等于保留天数）
-    LOG_MAX_BYTES: int = 10 * 1024 * 1024      # size 模式下单个文件最大字节（默认 10MB）
+    LOG_BACKUP_COUNT: int = 5                        # 滚动文件保留的备份数
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024            # 单个文件最大字节（10MB，RotatingFileHandler 滚动阈值）
 
     @property
     def database_url(self) -> str:

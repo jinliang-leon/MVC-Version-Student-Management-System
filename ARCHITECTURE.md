@@ -2,51 +2,74 @@
 
 ## 整体架构
 
-项目采用 **MVC 三层架构**，代码按职责分目录，而不是按功能堆在一起：
+项目采用 **MVC + Service / Repository** 分层架构（在 MVC 基础上进一步把业务逻辑与纯数据访问拆出来），代码按职责分目录：
 
 | 层 | 目录 | 一句话职责 |
 |---|---|---|
-| Model | `app/models/`、`app/crud/` | 数据从哪来、业务规则怎么定 |
-| View | `app/schemas/` | 接口返回什么格式 |
-| Controller | `app/api/` | 把请求接进来、把结果还回去 |
+| Controller | `app/controllers/` | 把请求接进来、调用 Service、拼装响应还回去 |
+| Service | `app/services/` | 业务逻辑：密码哈希、RBAC 守卫、校验、编排 Repository |
+| Repository | `app/repositories/` | 纯数据访问（CRUD / 查询），不含业务规则 |
+| View | `app/views/` + `app/schemas/` | 响应体拼装（`*_to_out`）与统一响应结构 / 出入参 Schema |
+| Model | `app/models/` | SQLAlchemy ORM 表结构 |
+| core | `app/core/`（横切） | 配置、数据库、安全、鉴权装饰器、日志、异常、转发 |
 
-一个刻意的取舍：**不设 `services/` 层**。业务规则全部下沉到 `crud/`（即"胖 Model"），因此 Controller 只剩路由声明，没有任何可复用的业务代码被拆成薄薄一层中转。
+一个关键取舍：**业务逻辑不放 Controller，也不下沉到 Repository**。`controllers/` 只做路由与编排，`repositories/` 只做数据读写，**所有业务规则（哈希、RBAC 守卫、唯一性/外键校验、删除保护）集中在 `services/`**，从而保证业务可被复用、可被单测，且不污染数据层。
 
 ## 各层职责
 
-### Model —— 数据 + 业务逻辑
+### Controller —— 调度（薄）
 
-`models/` 定义表结构，`crud/` 承载对表的全部操作与规则。
-
-- `models/base.py`：`TimestampMixin` 给每张表统一注入 `created_at`、`updated_at`、`is_deleted` 三个审计字段；主键命名各表自定义（`class_id`、`student_id`、……）。
-- `models/*.py`：5 张表的 ORM 定义 —— `class`、`student`、`teacher`、`score`、`employment`。
-- `crud/base.py`：泛型 `CRUDBase`，封装分页 + 模糊搜索、按主键查询、局部更新、逻辑删除与恢复、`unique_specs` 唯一性校验（重复创建 / 改名撞车 / 恢复后重名，均抛 409）。所有查询默认过滤 `is_deleted == False`。
-- `crud/<实体>.py`：该实体独有的规则。例如学生创建前校验班级是否存在（外键预校验）、成绩/就业记录拼装 `student_name`、班级删除前确认班里没有学生。
-
-判定标准：**凡是"换个接口也得这么做"的逻辑，都属于这一层。**
-
-### View —— 返回格式
-
-`schemas/` 用 Pydantic 模型描述接口的输入输出结构。
-
-- `*Out`：响应结构。通过路由装饰器上的 `response_model=ApiResponse[StudentOut]` 生效，FastAPI 会按它序列化并过滤字段——**不在这份契约里的字段不会泄漏出去**。
-- `*Create` / `*Update`：入参校验（必填项、长度、取值枚举等），请求体不合法直接 422。
-- `common.py`：`PageResult[T]` 分页结果、`PageParams` 分页参数。
-- `validators.py`：跨 Schema 复用的自定义校验。
-
-绑定方式是**声明式**的：View 不写序列化代码，只声明结构，落点在 Controller 的装饰器上。
-
-### Controller —— 调度
-
-`api/` 下的路由函数只允许出现四样东西：装饰器（含 `response_model`）、参数声明、一次 `crud` 调用、`success(...)` 包装。
+`controllers/` 下的路由函数只允许出现：装饰器（含权限声明）、参数声明、一次 `service` 调用、`views.serializers.*_to_out` 拼装 + `success(...)` 包装。不含 SQL，不含业务规则。
 
 ```python
 @router.post("/", status_code=201, response_model=ApiResponse[StudentOut], summary="新增学生")
-def create_student(payload: StudentCreate = Body(...), db: Session = Depends(get_db)):
-    return success(data=crud_student.create_student(db, payload), message="学生创建成功", code=201)
+@require_permission("student:create")
+def create_student(request: Request, payload: StudentCreate = Body(...), db: Session = Depends(get_db)):
+    student = student_service.create_student(db, payload, operator=request.state.user)
+    return success(data=student_to_out(student), message="学生创建成功", code=201)
 ```
 
-依赖在 `api/deps.py` 统一管理：`get_db()` 提供请求级数据库会话，`PaginationParams` 解析并兜底分页参数。
+依赖在 `controllers/deps.py` 统一管理：`get_db()` 提供请求级数据库会话，`PaginationParams` 解析并兜底分页参数。
+
+鉴权通过装饰器（`app/core/decorators.py`）而非 FastAPI `Depends`：`@auth_required` / `@require_role` / `@require_permission`；被装饰函数必须带 `request: Request` 参数（装饰器从中取 Token 并写入 `request.state.user`）。
+
+### Service —— 业务逻辑（胖）
+
+`services/` 承载所有"换个接口也得这么做"的逻辑：
+
+- 密码哈希（`bcrypt`）、登录认证、注册时绑定学生；
+- RBAC 守卫：最后一个超级管理员保护、授予 `super_admin` 的限制、接口禁止创建 `is_system=True` 系统角色；
+- 业务校验：外键存在性（如学生→班级）、唯一性、删除前的关联保护（如班级下还有学生时禁止删除）；
+- 编排一个或多个 `repositories` 完成持久化，必要时组合多次读写于同一事务。
+
+### Repository —— 纯数据访问（瘦）
+
+`repositories/` 只做对表的 CRUD 与查询，不含业务规则。
+
+- `repositories/base.py`：泛型 `RepositoryBase`，封装分页 + 模糊搜索、按主键查询、局部更新、逻辑删除与恢复、`unique_specs` 唯一性校验（重复创建 / 改名撞车 / 恢复后重名，均抛 409）。所有查询默认过滤 `is_deleted == False`。
+- `repositories/<实体>.py`：该实体独有的查询/写入，例如成绩查询时预加载关联实体——**业务字段拼装（如给成绩补 `student_name`）已由 View 层负责，不在此处**。
+
+### View —— 返回格式
+
+- `views/serializers.py`：`*_to_out(orm) -> dict`，把 ORM 对象转成接口响应字典（集中管理，避免在各地散落拼装）。
+- `views/response.py`：统一响应体 `ApiResponse[T]` 与全局异常处理器（`BusinessException` / `HTTPException` / 422 / 500 统一转成 `{code, message, data}`）。
+- `schemas/`：Pydantic 模型。`*Out` 定义响应结构（通过 `response_model=ApiResponse[X]` 生效，FastAPI 会按它序列化并过滤字段）；`*Create` / `*Update` 负责入参校验。
+
+### Model —— 表结构
+
+`models/` 定义 ORM。`base.py` 的 `TimestampMixin` 给每张表统一注入 `created_at`、`updated_at`、`is_deleted`；`role.py` 中定义 `user_role`、`role_permission` 两张多对多关联表。
+
+### core —— 横切基础设施
+
+`core/` 不属于 MVC 任意一层，被各层共用：
+
+- `config.py`：读取 `.env`（`pydantic-settings`，带类型校验与默认值）
+- `database.py`：引擎、会话工厂、`DeclarativeBase`
+- `security.py`：密码哈希（`bcrypt`）+ JWT 编解码（`PyJWT`）
+- `decorators.py`：RBAC 鉴权装饰器
+- `logger.py`：日志初始化（`RotatingFileHandler`，10MB / 5 备份）
+- `exceptions.py`：业务异常体系（`NotFoundException` / `DuplicateException` / `ConflictException` / `UnauthorizedException` / `ForbiddenException` 等）
+- `forwarder.py`：Dify `/gateway` 自转发逻辑（与数据库无关）
 
 ## 层与层之间的调用关系
 
@@ -56,23 +79,27 @@ def create_student(payload: StudentCreate = Body(...), db: Session = Depends(get
         └──────┬───────┘
                ▼
 ┌──────────────────────────────────┐
-│ Controller        app/api/       │   ① 解析参数、注入 Session
-│ 路由函数                          │
+│ Controller      app/controllers/ │   ① 解析参数、注入 Session、鉴权装饰器
 └──────────────┬───────────────────┘
-               │ ② crud_xxx.method(db, payload)
+               │ ② service.method(db, payload, operator)
                ▼
 ┌──────────────────────────────────┐
-│ Model             app/crud/      │   ③ 业务规则 + 事务
-│                   app/models/    │      （ORM → SQL）
+│ Service        app/services/     │   ③ 业务规则 + 校验 + 编排
+└──────────────┬───────────────────┘
+               │ ④ repository.method(db, ...)
+               ▼
+┌──────────────────────────────────┐
+│ Repository    app/repositories/  │   ⑤ 纯数据读写（ORM → SQL）
+│               app/models/        │
 └──────────────┬───────────────────┘
                ▼
            ┌────────┐
            │ MySQL  │
-           └────┬───┘
-               │ ④ 返回 ORM 对象 / dict
+           └────────┘
+               │ ⑥ 返回后逐层上溯
                ▼
 ┌──────────────────────────────────┐
-│ View              app/schemas/   │   ⑤ response_model 序列化 + 校验
+│ View           app/views/        │   ⑦ serializers.*_to_out + ApiResponse
 └──────────────┬───────────────────┘
                ▼
         ┌──────────────┐
@@ -84,19 +111,19 @@ def create_student(payload: StudentCreate = Body(...), db: Session = Depends(get
 
 规则：
 
-- Controller **只向下调用** Model，不反向；Model 不知道 HTTP 的存在。
-- View 不参与调用链，它是挂在 Controller 出口上的**声明**，由 FastAPI 在序列化阶段执行。
-- 层内依赖方向由下往上不允许：`crud/` 可以依赖 `models/` 和 `schemas/`，`api/` 可以依赖两者，反向依赖一律禁止。
+- Controller **只向下调用** Service，Service 只向下调用 Repository，Model / Repository 不知道 HTTP 的存在。
+- View 不参与调用链，它是挂在 Controller 出口上的**声明 + 拼装**，由 FastAPI 在序列化阶段执行。
+- 层内依赖方向由下往上不允许：`repositories/` 可依赖 `models/`；`services/` 可依赖 `repositories/` 与 `models/`；`controllers/` 可依赖 `services/` / `views/` / `schemas/`；反向依赖一律禁止。
 
 ### 异常路径（旁路）
 
-业务失败不靠 Controller 逐层判断，而是由 Model 抛业务异常，全局处理器统一转成响应体：
+业务失败由 Service / Repository 抛业务异常，全局处理器统一转成响应体：
 
 ```
-crud 内 raise NotFoundException / DuplicateException / ConflictException
+service / repository 内 raise NotFoundException / DuplicateException / ConflictException / ForbiddenException
         │
         ▼
-core/response.py 的全局异常处理器（BusinessException / HTTPException / 422 / 500）
+views/response.py 的全局异常处理器（BusinessException / HTTPException / 422 / 500）
         │
         ▼
 统一错误体 { "code": 404, "message": "...", "data": null }
@@ -104,37 +131,57 @@ core/response.py 的全局异常处理器（BusinessException / HTTPException / 
 
 好处：错误格式只有一处定义，Controller 里看不到 `try/except`。
 
+## 鉴权设计（JWT + RBAC）
+
+- `access_token` **仅存放身份信息**（`sub`=用户 ID、`username`、签发时间、过期时间），**不携带角色/权限**。
+- 鉴权装饰器每次都按 `sub` 从数据库重新加载用户角色与权限，因此修改权限/角色后**即时生效，无需重新登录**。
+- `refresh_token` 的生成函数（`security.create_refresh_token`）已就绪，但登录接口当前仅签发 `access_token`，刷新流程待后续迭代接入。
+- 失败响应同样走统一格式：`401`（未携带/无效 Token）、`403`（Token 有效但权限不足）。
+
+详细权限码、角色与接口清单见 [RBAC_USAGE.md](RBAC_USAGE.md)。
+
 ## 目录与分层的对应
 
 ```
 app/
-├── main.py          应用入口：组装 FastAPI、注册中间件/异常处理器/路由
-├── api/             Controller 层 —— 路由函数
-│   ├── deps.py      依赖注入（数据库会话、分页参数）
+├── main.py              应用入口：组装 FastAPI、注册中间件/异常处理器/路由
+├── controllers/         Controller 层 —— 路由函数（薄）
+│   ├── deps.py          依赖注入（数据库会话、分页参数）
 │   ├── class_.py student.py teacher.py score.py employment.py
-│   ├── stats.py     6 个统计接口
-│   └── gateway.py   Dify 转发入口
-├── models/          Model 层 —— ORM 表结构
-├── crud/            Model 层 —— 数据访问与业务规则
-├── schemas/         View 层 —— 入参校验与出参结构
-└── core/            基础设施（不属于 MVC 任意一层，被各层共用）
-    ├── config.py    环境变量与全局配置
-    ├── database.py  引擎、会话工厂、DeclarativeBase
-    ├── response.py  统一响应体 ApiResponse[T] + 全局异常处理器
-    ├── exceptions.py 业务异常体系
-    └── forwarder.py 自转发逻辑（与数据库无关，故不放 crud/）
+│   ├── auth.py users.py roles.py permissions.py stats.py
+│   └── gateway.py       Dify 转发入口
+├── services/            Service 层 —— 业务逻辑（胖）
+│   └── *_service.py     user / role / permission / class_ / student / teacher / score / employment / stats
+├── repositories/        Repository 层 —— 纯数据访问（瘦）
+│   ├── base.py          RepositoryBase（分页、模糊搜索、唯一性校验、逻辑删除/恢复）
+│   └── *_repository.py  各实体的 CRUD / 查询
+├── views/               View 层 —— 响应拼装与统一响应
+│   ├── serializers.py   *_to_out（ORM → dict）
+│   └── response.py      ApiResponse[T] + 全局异常处理器
+├── models/              Model 层 —— ORM 表结构
+├── schemas/             入参校验与出参结构（Pydantic）
+└── core/               基础设施（横切，被各层共用）
+    ├── config.py        环境变量与全局配置
+    ├── database.py      引擎、会话工厂、DeclarativeBase
+    ├── security.py      密码哈希 + JWT 编解码
+    ├── decorators.py    RBAC 鉴权装饰器
+    ├── logger.py        日志初始化
+    ├── exceptions.py    业务异常体系
+    └── forwarder.py     自转发逻辑
 ```
 
-`core/` 是横切关注点：配置、连接、异常、日志不属于业务，因此单独成目录，三层都可依赖它，它不依赖任何一层。
+`core/` 是横切关注点：配置、连接、异常、日志不属于业务，因此单独成目录，各层都可依赖它，它不依赖任何一层。
 
 ## 技术选型理由
 
-**FastAPI** —— 直接由类型注解生成 OpenAPI 文档，`/docs` 开箱可用，省掉手写接口文档；依赖注入（`Depends`）天然适配"每个请求一个数据库会话"的 Web 场景；原生基于 Pydantic，让 View 层可以用声明代替序列化代码。
+**FastAPI** —— 直接由类型注解生成 OpenAPI 文档，`/docs` 开箱可用；依赖注入（`Depends`）天然适配"每个请求一个数据库会话"；原生基于 Pydantic，让 View 层可以用声明代替序列化代码。
 
-**SQLAlchemy 2.0** —— ORM 把表结构与 Python 类绑定，模型即文档；`Mapped` 类型注解能在 IDE 里补全字段名，配合 `select()` 新风格写出可组合的查询。会话与事务边界清晰（`sessionmaker` 交给 `get_db()` 管理），逻辑删除只需在基类查询里加一个过滤条件，而 `unique_specs` 这类跨表规则也能在 CRUD 基类里一次实现、五张表复用。
+**SQLAlchemy 2.0** —— ORM 把表结构与 Python 类绑定；`Mapped` 类型注解能在 IDE 里补全字段名，配合 `select()` 新风格写出可组合查询。会话与事务边界清晰（`sessionmaker` 交给 `get_db()` 管理），逻辑删除只需在基类查询里加一个过滤条件，而 `unique_specs` 这类跨表规则也能在 Repository 基类里一次实现、多实体复用。
 
-**Pydantic v2** —— 入参校验和出参契约用同一套模型语言表达，避免"校验一遍、序列化再写一遍"的重复；`response_model` 会在返回前过滤未声明字段并做类型转换，把 View 层契约真正**落到运行时**，而不是停留在注释里。`pydantic-settings` 则让 `.env` 读取带类型校验和默认值，配置项写错在启动时就会报错，而非运行到一半才失败。
+**Pydantic v2** —— 入参校验和出参契约用同一套模型语言表达；`response_model` 会在返回前过滤未声明字段并做类型转换，把 View 层契约真正**落到运行时**。`pydantic-settings` 则让 `.env` 读取带类型校验和默认值，配置项写错在启动时就会报错。
 
-**MySQL** —— 五张表之间是典型的强关系型结构（学生→班级、成绩→学生+教师、就业→学生），外键与聚合统计（`/stats/*` 的分组、连接、均值）都是关系库的强项。
+**PyJWT + bcrypt** —— Token 只存身份、权限每次查库，兼顾无状态与"权限即时生效"；bcrypt 自带盐，密码哈希不可逆。
+
+**MySQL** —— 五张表之间是典型的强关系型结构（学生→班级、成绩→学生+教师、就业→学生），外键与聚合统计（`/stats/*`）都是关系库的强项。
 
 **httpx** —— `/gateway` 需要异步发起 HTTP 请求，与 FastAPI 的异步模型一致，避免在协程里用同步客户端阻塞事件循环。

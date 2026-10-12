@@ -55,7 +55,7 @@ services:
     ports:
       - "8001:8001"
     volumes:
-      - app_logs:/app/app/logs    # 日志持久化到命名卷（宿主机查看：docker volume inspect）
+      - app_logs:/app/logs    # 日志持久化到命名卷（宿主机查看：docker volume inspect）
 
 volumes:
   db_data:

@@ -28,8 +28,8 @@ from fastapi import Request
 from app.core.database import SessionLocal
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_token
-from app.crud.user import crud_user
 from app.models.user import User
+from app.repositories.user import user_repository
 
 
 def _get_request(func: Callable, args: tuple, kwargs: dict) -> Request:
@@ -73,7 +73,7 @@ def _authenticate(request: Request) -> User:
     # 用独立短会话加载用户，不依赖路由自身注入的 db，保证装饰器可单独使用
     db = SessionLocal()
     try:
-        user = crud_user.get_with_roles(db, user_id)   # 预加载 roles + permissions
+        user = user_repository.get_with_roles(db, user_id)   # 预加载 roles + permissions
     finally:
         db.close()
 

@@ -28,31 +28,35 @@
 ├── Dockerfile                # 后端镜像（构建上下文为项目根目录）
 ├── docker-compose.yml        # 后端 + MySQL 一键编排
 ├── seed_rbac.py              # RBAC 种子脚本：建表 + 初始化权限/角色/初始管理员
-├── API.md / ARCHITECTURE.md / DATABASE.md / CHANGELOG.md
+├── API.md / ARCHITECTURE.md / DATABASE.md / RBAC_USAGE.md / RBAC_TEST.md / CHANGELOG.md / REFACTOR_MVC.md
 └── app/                      # 唯一的 Python 包
     ├── main.py               # 应用入口：创建 FastAPI 实例、挂载路由与全局异常处理
     ├── requirements.txt
-    ├── api/                  # 【Controller 层】路由函数：收请求 → 调 CRUD → 返回
-    ├── core/                 # 基础设施：配置、数据库、安全、鉴权装饰器、日志、响应、转发
+    ├── controllers/          # 【Controller 层】路由函数：收请求 → 调 Service → 拼装响应
+    ├── services/             # 【Service 层】业务逻辑：密码哈希、RBAC 守卫、校验、编排 Repository
+    ├── repositories/         # 【Repository 层】纯数据访问（CRUD / 查询），不含业务规则
+    ├── views/                # 【View 层】响应体拼装（*_to_out）与统一响应结构
     ├── models/               # 【Model 层】SQLAlchemy ORM 表结构
-    ├── schemas/              # Pydantic 模型：入参校验 + 出参结构（View 层）
-    ├── crud/                 # 【Model 层】数据访问与业务逻辑
-    └── logs/                 # 运行时日志输出（已被 .gitignore 忽略）
+    ├── schemas/              # Pydantic 模型：入参校验 + 出参结构定义
+    ├── core/                 # 基础设施：配置、数据库、安全、鉴权装饰器、日志、转发
+    └── logs/                 # 运行时日志输出（项目根目录，已被 .gitignore 忽略）
 ```
 
 ### 各层职责
 
-- **`api/`（Controller）** —— 只做参数声明、调用一次 `crud`、用 `success()` 包装返回；不含 SQL，不含业务规则。业务接口通过装饰器声明所需权限码。
+- **`controllers/`（Controller）** —— 只做参数声明、调用一次 `service`、用 `views.serializers.*_to_out` 拼装 + `success()` 包装返回；不含 SQL，不含业务规则。业务接口通过装饰器声明所需权限码。
   - `class_.py` `student.py` `teacher.py` `score.py` `employment.py`：五张业务表的标准 CRUD
   - `auth.py`：登录、注册、当前用户（`/auth`）
   - `users.py` `roles.py` `permissions.py`：RBAC 用户/角色/权限管理
   - `stats.py`：6 个统计接口
   - `gateway.py`：Dify 专用转发入口
   - `deps.py`：数据库会话与分页参数依赖
+- **`services/`（Service）** —— 业务逻辑层。`*_service.py` 承载密码哈希、RBAC 守卫（如最后一个超级管理员保护、禁止接口创建系统角色）、外键/唯一性业务校验，并编排 `repositories` 完成持久化。
+- **`repositories/`（Repository）** —— `base.py` 是泛型 `RepositoryBase`（分页、模糊搜索、唯一性校验、逻辑删除/恢复）；各实体文件只做 CRUD / 查询，不含业务规则。
+- **`views/`（View）** —— `serializers.py` 把 ORM 对象转成接口响应字典（`*_to_out`）；`response.py` 提供统一响应体 `ApiResponse[T]` 与全局异常处理器。
 - **`models/`（Model）** —— ORM 表结构。`base.py` 的 `TimestampMixin` 为每张表统一注入 `created_at` / `updated_at` / `is_deleted`；`role.py` 中定义 `user_role`、`role_permission` 两张多对多关联表。
-- **`crud/`（Model）** —— `base.py` 是泛型 `CRUDBase`（分页、模糊搜索、唯一性校验、逻辑删除/恢复）；各实体文件在此实现自身业务规则与字段拼装（如给成绩补上 `student_name`）。
-- **`schemas/`（View）** —— `*Out` 类定义接口返回的 JSON 结构，通过路由上的 `response_model=ApiResponse[X]` 约束输出；`*Create` / `*Update` 负责入参校验；`auth.py` / `rbac.py` 为鉴权相关结构。
-- **`core/`（基础设施）** —— `config.py` 读取 `.env`、`database.py` 管理引擎与会话、`security.py` 密码哈希与 JWT 编解码、`decorators.py` 鉴权装饰器、`log_config.py` 日志初始化、`response.py` 统一响应体与全局异常处理、`forwarder.py` 自转发逻辑。
+- **`schemas/`** —— Pydantic 模型：`*Out` 定义接口返回的 JSON 结构（通过 `response_model=ApiResponse[X]` 约束输出），`*Create` / `*Update` 负责入参校验；`auth.py` / `rbac.py` 为鉴权相关结构。
+- **`core/`（基础设施）** —— `config.py` 读取 `.env`、`database.py` 管理引擎与会话、`security.py` 密码哈希与 JWT 编解码、`decorators.py` 鉴权装饰器、`logger.py` 日志初始化、`exceptions.py` 业务异常体系、`forwarder.py` 自转发逻辑。
 
 架构与分层理由详见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
@@ -72,7 +76,7 @@ pip install -r app/requirements.txt
 
 数据库只需先建好一个空库，**表不用手动建**：服务启动时会执行 `Base.metadata.create_all()` 自动创建/补齐全部业务表与 RBAC 表。
 
-> `requirements.txt` 中的 `openpyxl` 目前未被代码直接引用，属预留依赖；`cryptography` 是 PyMySQL 连接 MySQL 8 默认认证插件（`caching_sha2_password`）时所需的依赖，不建议移除。
+> `cryptography` 是 PyMySQL 连接 MySQL 8 默认认证插件（`caching_sha2_password`）时所需的依赖，已保留在 `requirements.txt` 中，不建议移除。
 
 ## 环境变量配置
 
@@ -100,10 +104,9 @@ cp .env.example .env
 | `CORS_ORIGINS` | `*` | 允许的跨域来源，多个用逗号分隔 |
 | `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` | `10` / `100` | 分页默认与最大条数 |
 | `LOG_LEVEL` | `INFO` | 日志级别 |
-| `LOG_DIR` / `LOG_FILE` | `app/logs` / `app.log` | 日志目录与文件名（相对路径以项目根目录为基准） |
-| `LOG_ROTATION` | `time` | 切分方式：`time` 按天 / `size` 按大小 |
-| `LOG_BACKUP_COUNT` | `30` | 保留的备份数（time 模式下约等于保留天数） |
-| `LOG_MAX_BYTES` | `10485760` | size 模式下单个文件最大字节（10MB） |
+| `LOG_DIR` / `LOG_FILE` | `logs` / `app.log` | 日志目录与文件名（相对路径以项目根目录为基准，即 `<项目根>/logs/app.log`） |
+| `LOG_BACKUP_COUNT` | `5` | 滚动文件保留的备份数 |
+| `LOG_MAX_BYTES` | `10485760` | 单个文件最大字节（10MB），达到即滚动 |
 
 说明：
 
@@ -161,7 +164,7 @@ python -m app.main
 
 要点：
 
-- 权限码以**数据库为准实时加载**，改动角色权限后立即生效，无需重新登录。JWT 里虽然也带了 `roles`，但只供前端展示与轻量判断。
+- 权限码以**数据库为准实时加载**，改动角色权限后立即生效，无需重新登录。JWT 仅携带身份标识（`sub` / `username`），不写入角色/权限；角色与权限一律以数据库为准。
 - 鉴权失败的响应同样走统一格式 `{code, message, data}`，`code` 为 401 / 403。
 - 被装饰的路由函数必须带 `request: Request` 参数（装饰器从其中取 Token）。
 
@@ -221,8 +224,8 @@ python -m app.main
 2026-10-12 09:30:00 | INFO     | app.main:50 | 数据库表检查/创建完成
 ```
 
-- 输出位置：默认 `<项目根>/app/logs/app.log`（由 `LOG_DIR` / `LOG_FILE` 控制，相对路径锚定项目根目录）。
-- 滚动策略：默认按天切分（`LOG_ROTATION=time`，午夜切分，保留 30 天）；改为 `size` 则按 `LOG_MAX_BYTES` 切分，保留 `LOG_BACKUP_COUNT` 个备份。
+- 输出位置：默认 `<项目根>/logs/app.log`（由 `LOG_DIR` / `LOG_FILE` 控制，相对路径锚定项目根目录）。
+- 滚动策略：默认按大小滚动（`RotatingFileHandler`，单文件最大 `LOG_MAX_BYTES` = 10MB，保留 `LOG_BACKUP_COUNT` = 5 个备份，utf-8）。
 - 业务代码统一用 `logger = logging.getLogger(__name__)` 取模块级 logger，用 `%s` 惰性拼接；只有处于 `except` 分支才用 `exc_info=True`。
 
 ## Docker 部署
@@ -242,7 +245,7 @@ docker compose down -v
 
 - 容器内通过服务名 `db` 访问 MySQL，`DATABASE_URL` 由 compose 的 `environment` 注入（优先级高于 `.env`），MySQL 密码在 compose 里以明文给出，**生产环境务必改掉**。
 - `app` 服务 `depends_on` 了 `db` 的 `service_healthy`，MySQL 真正就绪后才会启动，避免建表失败。
-- 日志通过命名卷 `app_logs` 持久化到容器内 `/app/app/logs`。
+- 日志通过命名卷 `app_logs` 持久化到容器内 `/app/logs`。
 - `Dockerfile` 以非 root 用户 `appuser` 运行，镜像内建了日志目录；如改端口需同步改 `Dockerfile` 的 `EXPOSE`/`CMD` 与 compose 的端口映射。
 - 首次部署还需初始化 RBAC 数据。镜像只 `COPY app /app/app`，**没有把 `seed_rbac.py` 复制进去**，所以不能直接 `docker compose exec app python seed_rbac.py`。两种可行做法：
   1. 在本机（已装依赖）指向容器里的 MySQL 执行，compose 已把 3306 映射到宿主机：

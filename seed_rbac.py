@@ -17,11 +17,11 @@ sys.path.append(str(Path(__file__).resolve().parent))
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import hash_password
-from app.crud.permission import crud_permission
-from app.crud.role import crud_role
-from app.crud.user import crud_user
 from app.models.role import Role
 from app.models.user import User
+from app.repositories.permission import permission_repository
+from app.repositories.role import role_repository
+from app.repositories.user import user_repository
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("seed_rbac")
@@ -85,6 +85,9 @@ PERMISSIONS = {
     "user": [
         ("user:list", "查询用户列表"),
         ("user:read", "查看用户详情"),
+        ("user:create", "新增用户"),
+        ("user:update", "更新用户"),
+        ("user:delete", "删除用户"),
         ("user:assign-role", "分配用户角色"),
     ],
 }
@@ -144,13 +147,13 @@ ROLES = [
 def _seed_permissions(db) -> None:
     for module, codes in PERMISSIONS.items():
         for code, name in codes:
-            crud_permission.get_or_create(db, code=code, name=name, module=module)
+            permission_repository.get_or_create(db, code=code, name=name, module=module)
     log.info("权限初始化完成（共 %d 个）", sum(len(c) for c in PERMISSIONS.values()))
 
 
 def _seed_roles(db) -> None:
     for spec in ROLES:
-        role = crud_role.get_by_code(db, spec["code"])
+        role = role_repository.get_by_code(db, spec["code"])
         if role is None:
             role = Role(
                 code=spec["code"],
@@ -162,7 +165,7 @@ def _seed_roles(db) -> None:
             db.flush()
             log.info("创建角色: %s（%s）", spec["code"], spec["name"])
         # 权限映射收敛到本文定义（幂等）
-        perms = [crud_permission.get_by_code(db, c) for c in spec["permissions"]]
+        perms = [permission_repository.get_by_code(db, c) for c in spec["permissions"]]
         role.permissions = [p for p in perms if p is not None]
         db.add(role)
     db.commit()
@@ -170,7 +173,7 @@ def _seed_roles(db) -> None:
 
 
 def _seed_admin(db) -> None:
-    admin = crud_user.get_by_username(db, settings.ADMIN_USERNAME)
+    admin = user_repository.get_by_username(db, settings.ADMIN_USERNAME)
     if admin is None:
         admin = User(
             username=settings.ADMIN_USERNAME,
@@ -183,7 +186,7 @@ def _seed_admin(db) -> None:
     else:
         log.info("初始管理员已存在: %s", settings.ADMIN_USERNAME)
 
-    super_role = crud_role.get_by_code(db, "super_admin")
+    super_role = role_repository.get_by_code(db, "super_admin")
     if super_role is not None and "super_admin" not in admin.role_codes:
         admin.roles.append(super_role)
         db.add(admin)

@@ -11,5 +11,11 @@ __pycache__/
 # 测试缓存
 .pytest_cache/
 
-# 日志文件（运行时生成）
-app/logs/
+# 日志文件（运行时自动生成，位于项目根目录 logs/，与 app 同级）
+/logs/
+
+# 服务进程日志（uvicorn 直接输出到根目录）
+uvicorn*.log
+
+# 本地冒烟测试脚本（非源码，按需本地运行）
+smoke_mvc_test.py

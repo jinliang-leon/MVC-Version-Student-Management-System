@@ -10,7 +10,7 @@
 - `Added` —— 新增功能
 - `Changed` —— 已有功能的行为或结构调整
 - `Fixed` —— 缺陷修复
-- `Removed` / `Deprecated` / `Security` —— 移除 / 弃用 / 安全相关（本项目暂未涉及）
+- `Removed` / `Deprecated` / `Security` —— 移除 / 弃用 / 安全相关
 
 ---
 
@@ -20,17 +20,41 @@
 
 ---
 
+## [1.3.0] - 2026-10-12
+
+重构为 **MVC + Service / Repository** 分层，并实装 **JWT + RBAC** 鉴权体系。
+
+### Added
+
+- 标准 MVC 分层：`controllers/`（路由）、`services/`（业务逻辑）、`repositories/`（纯数据访问）、`views/`（响应拼装 + 统一响应）、`models/`（ORM）、`core/`（横切）。
+- RBAC 鉴权：`@auth_required` / `@require_role` / `@require_permission` 装饰器，基于 JWT（仅含身份 `sub` / `username`）；权限每次按 `sub` 查库，改动即时生效。
+- `seed_rbac.py`：初始化权限目录、预置角色（`super_admin` / `admin` / `teacher` / `student`）与初始管理员。
+- `requirements.txt` 增加 `PyJWT`、`bcrypt`（认证相关），移除未使用的 `openpyxl`。
+- 新增 `REFACTOR_MVC.md`（重构说明）、`RBAC_USAGE.md`（权限与角色手册）、`RBAC_TEST.md`（鉴权回归用例）。
+
+### Changed
+
+- 业务逻辑（密码哈希、RBAC 守卫、唯一性 / 外键校验、删除保护）从原 `crud/` 抽到 `services/`；响应拼装（`*_to_out`）集中到 `views/serializers.py`。
+- 原 `app/api/` → `app/controllers/`、`app/crud/` → `app/repositories/`、`app/core/response.py` → `app/views/response.py`，旧目录已删除。
+- 日志模块由 `log_config.py` 更名为 `logger.py`，改为 `RotatingFileHandler`（单文件 10MB / 保留 5 备份）。
+
+### Security
+
+- `SECRET_KEY` / `ALGORITHM` / `ACCESS_TOKEN_EXPIRE_MINUTES` 已生效；`REFRESH_TOKEN_EXPIRE_MINUTES` 为 refresh_token 生成函数所用，登录接口当前仅签发 access_token。
+
+---
+
 ## [1.2.0] - 2026-10-09
 
 引入标准的环境变量配置体系，配置项集中到项目根目录的 `.env`，并让接口文档中的端口与实际配置自动同步。
 
 ### Added
 
-- 新增 `.env`：本地实际配置（`APP_NAME`、`DEBUG`、`APP_HOST`、`APP_PORT`、`DATABASE_URL`、JWT 预留项等），已被 `.gitignore` 忽略。
+- 新增 `.env`：本地实际配置（`APP_NAME`、`DEBUG`、`APP_HOST`、`APP_PORT`、`DATABASE_URL`、JWT 配置项等），已被 `.gitignore` 忽略。
 - 新增 `.env.example`：配置模板，敏感值以 `your_password_here`、`sk-xxxxxxxx` 等占位符给出；复制为 `.env` 即可使用。
 - 新增 `.gitignore`：忽略 `.env`、`venv/`、`__pycache__/`、`*.pyc`、`.pytest_cache/`。
 - `app/core/config.py` 新增 `DATABASE_URL` 字段：提供时优先使用，未提供则回退到 `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` 拼接（`database_url` 属性）。
-- `app/core/config.py` 新增 JWT 预留配置：`SECRET_KEY`、`ALGORITHM`、`ACCESS_TOKEN_EXPIRE_MINUTES`（当前尚无代码消费）。
+- `app/core/config.py` 新增 JWT 配置：`SECRET_KEY`、`ALGORITHM`、`ACCESS_TOKEN_EXPIRE_MINUTES`、`REFRESH_TOKEN_EXPIRE_MINUTES`。（后于 [1.3.0] 正式接入鉴权；`REFRESH_TOKEN_EXPIRE_MINUTES` 为 refresh_token 生成函数所用，登录接口当前仅签发 access_token。）
 
 ### Changed
 

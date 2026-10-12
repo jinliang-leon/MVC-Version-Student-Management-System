@@ -160,7 +160,7 @@
 
 ### 2. 唯一性约束应用层实现，数据库未加 UNIQUE 索引
 
-数据库层面没有建任何 UNIQUE 索引，唯一性由 `app/crud/base.py` 的 `unique_specs` 在写入前校验，命中则抛 409：
+数据库层面没有建任何 UNIQUE 索引，唯一性由 `app/repositories/base.py` 的 `unique_specs` 在写入前校验，命中则抛 409：
 
 | 表 | 唯一规则 | 提示信息 |
 |---|---|---|

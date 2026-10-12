@@ -15,9 +15,9 @@ from fastapi.responses import JSONResponse, Response
 
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.core.response import error
 from app.core.security import create_access_token
-from app.crud.user import crud_user
+from app.services.user_service import user_service
+from app.views.response import error
 
 # 需要携带 JSON 请求体的方法
 _FORWARDABLE = {"POST", "PUT", "PATCH"}
@@ -32,7 +32,7 @@ def _internal_auth_headers() -> dict[str, str]:
     """
     db = SessionLocal()
     try:
-        service_user = crud_user.get_or_create_service_user(db)
+        service_user = user_service.get_or_create_service_user(db)
         token = create_access_token(service_user.user_id, service_user.role_codes)
         return {"Authorization": f"Bearer {token}"}
     finally:

@@ -23,7 +23,6 @@ from app.schemas.auth import (
     RegisterRequest,
     TokenResponse,
     UserOut,
-    user_to_out,
 )
 from app.schemas.rbac import (
     PermissionOut,
@@ -75,7 +74,6 @@ __all__ = [
     "TokenResponse",
     "UserOut",
     "CurrentUserOut",
-    "user_to_out",
     # rbac
     "PermissionOut",
     "RoleCreate",
